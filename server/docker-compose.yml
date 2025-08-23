@@ -1,0 +1,134 @@
+version: '3.8'
+
+services:
+  # Main API server
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: chat-session-api
+    restart: unless-stopped
+    ports:
+      - "${PORT:-8787}:8787"
+    environment:
+      # Server configuration
+      - NODE_ENV=production
+      - PORT=8787
+      - API_VERSION=2.0.0
+      
+      # CORS configuration
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:5173,https://chat-session-builder.com}
+      
+      # Rate limiting
+      - RATE_LIMIT_WINDOW_MS=${RATE_LIMIT_WINDOW_MS:-60000}
+      - RATE_LIMIT_MAX_REQUESTS=${RATE_LIMIT_MAX_REQUESTS:-60}
+      - RATE_LIMIT_MAX_CONCURRENT=${RATE_LIMIT_MAX_CONCURRENT:-10}
+      
+      # API keys (set these in .env file)
+      - NOTION_TOKEN=${NOTION_TOKEN}
+      - AIRTABLE_TOKEN=${AIRTABLE_TOKEN}
+      
+      # Logging
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - LOG_FILE=/app/logs/server.log
+      
+      # Security
+      - SESSION_SECRET=${SESSION_SECRET:-your-session-secret-here}
+      - HELMET_CSP_ENABLED=true
+    volumes:
+      # Persist logs
+      - ./logs:/app/logs
+      # Mount environment file if exists
+      - ./.env:/app/.env:ro
+    networks:
+      - chat-session-network
+    healthcheck:
+      test: ["CMD", "node", "-e", "
+        const http = require('http');
+        const options = {
+          host: 'localhost',
+          port: 8787,
+          path: '/health',
+          timeout: 2000,
+        };
+        const request = http.request(options, (res) => {
+          if (res.statusCode === 200) {
+            process.exit(0);
+          } else {
+            process.exit(1);
+          }
+        });
+        request.on('error', () => process.exit(1));
+        request.end();
+      "]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    depends_on:
+      - redis
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Redis for caching and rate limiting (future use)
+  redis:
+    image: redis:7-alpine
+    container_name: chat-session-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-defaultpassword}
+    volumes:
+      - redis_data:/data
+    networks:
+      - chat-session-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Nginx reverse proxy (production setup)
+  nginx:
+    image: nginx:alpine
+    container_name: chat-session-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - api
+    networks:
+      - chat-session-network
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    profiles:
+      - production
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  chat-session-network:
+    driver: bridge
+
+volumes:
+  redis_data:
+    driver: local
