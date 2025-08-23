@@ -209,7 +209,7 @@ program
   });
 ` : ''}
 
-${config.priorities.includes('analytics-logging') ? `
+${config.priorities.includes('error-handling') ? `
 // Analytics command
 program
   .command('stats')
@@ -496,7 +496,7 @@ class ChatManager {
   }
   ` : ''}
   
-  ${config.priorities.includes('analytics-logging') ? `
+  ${config.priorities.includes('error-handling') ? `
   async getStatistics(sessionId = null) {
     ${config.priorities.includes('message-persistence') ? `
     return await this.db.getStatistics(sessionId);

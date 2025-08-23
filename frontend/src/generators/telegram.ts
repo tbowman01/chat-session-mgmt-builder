@@ -104,7 +104,7 @@ bot.onText(/\\/help/, async (msg) => {
 ${config.projectName} Help
 
 This bot helps you manage chat sessions with the following features:
-${config.priorities.map(p => \`• \${p.replace('-', ' ').replace(/\\b\\w/g, l => l.toUpperCase())}\`).join('\\n')}
+\${config.priorities.map(p => \`• \${p.replace('-', ' ').replace(/\\\\b\\\\w/g, l => l.toUpperCase())}\`).join('\\\\n')}
 
 For more information, contact the administrator.
   \`;

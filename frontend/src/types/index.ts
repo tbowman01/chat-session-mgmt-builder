@@ -13,8 +13,6 @@ export type Priority =
   | 'session-management'
   | 'user-authentication'
   | 'real-time-sync'
-  | 'analytics-logging'
-  | 'rate-limiting'
   | 'error-handling'
   | 'scalability';
 
@@ -32,11 +30,11 @@ export type TeamSize = 'solo' | 'small' | 'medium' | 'large' | 'enterprise';
 export type Complexity = 'basic' | 'intermediate' | 'advanced' | 'expert';
 
 export interface BuildConfiguration {
-  platform: Platform | null;
+  platform: Platform;
   priorities: Priority[];
   features: Feature[];
-  teamSize: TeamSize | null;
-  complexity: Complexity | null;
+  teamSize: TeamSize;
+  complexity: Complexity;
   projectName: string;
   description: string;
 }

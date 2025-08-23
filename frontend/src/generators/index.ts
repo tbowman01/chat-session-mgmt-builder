@@ -181,12 +181,12 @@ export function generateEnvExample(config: BuildConfiguration): string {
   }
   
   // Rate limiting configuration
-  if (priorities.includes('rate-limiting')) {
+  if (priorities.includes('error-handling')) {
     envContent += `# Rate Limiting\nRATE_LIMIT_MAX_REQUESTS=100\nRATE_LIMIT_WINDOW_MS=900000\n\n`;
   }
   
   // Analytics and logging
-  if (priorities.includes('analytics-logging')) {
+  if (priorities.includes('error-handling')) {
     envContent += `# Logging & Analytics\nLOG_LEVEL=info\nANALYTICS_ENDPOINT=https://your-analytics-service.com\n\n`;
   }
   

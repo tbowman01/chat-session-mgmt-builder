@@ -471,7 +471,7 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
 app.use('/uploads', express.static('uploads'));
 ` : ''}
 
-${config.priorities.includes('analytics-logging') ? `
+${config.priorities.includes('error-handling') ? `
 // Analytics endpoint
 app.get('/api/analytics', async (req, res) => {
   try {

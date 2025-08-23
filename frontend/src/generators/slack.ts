@@ -137,7 +137,7 @@ app.command('/help', async ({ command, ack, respond }) => {
         type: 'section',
         text: {
           type: 'mrkdwn',
-          text: \`${config.priorities.map(p => \`• *\${p.replace('-', ' ').replace(/\\b\\w/g, l => l.toUpperCase())}*\`).join('\\n')}\`
+          text: \`\${config.priorities.map(p => \`• *\${p.replace('-', ' ').replace(/\\\\b\\\\w/g, l => l.toUpperCase())}*\`).join('\\\\n')}\`
         }
       },
       ${config.features.length > 0 ? `
@@ -145,7 +145,7 @@ app.command('/help', async ({ command, ack, respond }) => {
         type: 'section',
         text: {
           type: 'mrkdwn',
-          text: 'Additional features:\\n${config.features.map(f => \`• \${f.replace('-', ' ').replace(/\\b\\w/g, l => l.toUpperCase())}\`).join('\\n')}'
+          text: \`Additional features:\\\\n\${config.features.map(f => \`• \${f.replace('-', ' ').replace(/\\\\b\\\\w/g, l => l.toUpperCase())}\`).join('\\\\n')}\`
         }
       },
       ` : ''}

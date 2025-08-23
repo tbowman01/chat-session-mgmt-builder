@@ -22,7 +22,7 @@ export const PLATFORMS: Record<Platform, PlatformConfig> = {
     estimatedTime: '1-3 hours',
     complexity: 'basic',
     supportedFeatures: ['file-attachments', 'custom-commands', 'ai-integration', 'multi-language'],
-    defaultPriorities: ['message-persistence', 'session-management', 'rate-limiting']
+    defaultPriorities: ['message-persistence', 'session-management']
   },
   'whatsapp-web': {
     name: 'whatsapp-web',
@@ -43,8 +43,8 @@ export const PLATFORMS: Record<Platform, PlatformConfig> = {
     requirements: ['Node.js 16+', 'Slack App Configuration', 'Workspace Admin Access'],
     estimatedTime: '4-6 hours',
     complexity: 'advanced',
-    supportedFeatures: ['conversation-branching', 'context-awareness', 'custom-commands', 'webhooks', 'ai-integration', 'analytics-logging'],
-    defaultPriorities: ['user-authentication', 'real-time-sync', 'analytics-logging', 'scalability']
+    supportedFeatures: ['conversation-branching', 'context-awareness', 'custom-commands', 'webhooks', 'ai-integration'],
+    defaultPriorities: ['user-authentication', 'real-time-sync', 'scalability']
   },
   'twitter-api': {
     name: 'twitter-api',
@@ -54,8 +54,8 @@ export const PLATFORMS: Record<Platform, PlatformConfig> = {
     requirements: ['Node.js 16+', 'Twitter Developer Account', 'API Keys'],
     estimatedTime: '2-4 hours',
     complexity: 'intermediate',
-    supportedFeatures: ['ai-integration', 'analytics-logging', 'rate-limiting'],
-    defaultPriorities: ['rate-limiting', 'analytics-logging', 'error-handling']
+    supportedFeatures: ['ai-integration'],
+    defaultPriorities: ['error-handling']
   },
   'web-chat': {
     name: 'web-chat',
@@ -118,15 +118,9 @@ export const PRIORITY_OPTIONS: SelectionOption<Priority>[] = [
     recommended: true
   },
   {
-    value: 'analytics-logging',
-    label: 'Analytics & Logging',
-    description: 'Track usage patterns and system events',
-    icon: '📊'
-  },
-  {
-    value: 'rate-limiting',
-    label: 'Rate Limiting',
-    description: 'Prevent abuse and manage API quotas',
+    value: 'error-handling',
+    label: 'Error Handling',
+    description: 'Robust error recovery and logging',
     icon: '🚦'
   },
   {

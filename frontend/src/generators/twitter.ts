@@ -118,7 +118,7 @@ class TwitterBot {
       const user = await rwClient.currentUser();
       console.log(\`Logged in as: @\${user.username} (\${user.name})\`);
       
-      ${config.priorities.includes('rate-limiting') ? `
+      ${config.priorities.includes('error-handling') ? `
       // Set up rate limiting
       this.setupRateLimiting();
       ` : ''}
@@ -300,7 +300,7 @@ class TwitterBot {
   }
   ` : ''}
   
-  ${config.priorities.includes('analytics-logging') ? `
+  ${config.priorities.includes('error-handling') ? `
   async logAnalytics(event, data) {
     try {
       const analyticsData = {
@@ -323,7 +323,7 @@ class TwitterBot {
   }
   ` : ''}
   
-  ${config.priorities.includes('rate-limiting') ? `
+  ${config.priorities.includes('error-handling') ? `
   setupRateLimiting() {
     // Monitor rate limit status
     setInterval(async () => {
@@ -409,7 +409,7 @@ console.log('Twitter bot started! Monitoring mentions...');`;
   );
 
   // Add analytics helper
-  if (config.priorities.includes('analytics-logging')) {
+  if (config.priorities.includes('error-handling')) {
     const analyticsJs = `// Twitter bot analytics utilities
 class TwitterAnalytics {
   constructor(redisClient) {
