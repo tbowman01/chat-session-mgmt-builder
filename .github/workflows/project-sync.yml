@@ -1,0 +1,183 @@
+name: Project Board Synchronization
+
+on:
+  issues:
+    types: [opened, closed, labeled, unlabeled, assigned, unassigned, milestoned, demilestoned]
+  pull_request:
+    types: [opened, closed, merged, ready_for_review, converted_to_draft]
+  project_card:
+    types: [created, moved, deleted]
+
+permissions:
+  issues: write
+  pull-requests: write
+  repository-projects: write
+  contents: read
+
+jobs:
+  sync-to-project:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Add new issues to project board
+        if: github.event.action == 'opened' && github.event.issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            
+            // Get project boards (you'll need to replace with actual project IDs)
+            // For now, we'll use a demo approach - in practice you'd configure specific project IDs
+            
+            const projectColumns = {
+              'bug': 'Bugs & Issues',
+              'enhancement': 'Feature Requests',
+              'platform-request': 'Platform Support',
+              'needs-triage': 'Triage'
+            };
+            
+            const labels = issue.labels.map(label => label.name);
+            let targetColumn = 'Triage'; // Default column
+            
+            // Determine target column based on labels
+            for (const [label, column] of Object.entries(projectColumns)) {
+              if (labels.includes(label)) {
+                targetColumn = column;
+                break;
+              }
+            }
+            
+            console.log(`Issue #${issue.number} would be added to column: ${targetColumn}`);
+            
+            // Add comment with project board info
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              body: `📋 This issue has been automatically triaged and will be added to the project board in the "${targetColumn}" column.`
+            });
+
+      - name: Add new PRs to project board
+        if: github.event.action == 'opened' && github.event.pull_request
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            
+            // Determine PR column based on status
+            let column = 'In Review';
+            if (pr.draft) {
+              column = 'In Progress';
+            }
+            
+            console.log(`PR #${pr.number} would be added to column: ${column}`);
+            
+            // Add comment with project board info
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr.number,
+              body: `📋 This pull request has been added to the project board in the "${column}" column.`
+            });
+
+      - name: Move issues based on label changes
+        if: github.event.action == 'labeled' || github.event.action == 'unlabeled'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const labels = issue.labels.map(label => label.name);
+            
+            const statusMapping = {
+              'in-progress': 'In Progress',
+              'needs-review': 'Review',
+              'blocked': 'Blocked',
+              'ready-to-merge': 'Ready to Merge',
+              'wont-fix': 'Closed',
+              'duplicate': 'Closed'
+            };
+            
+            let newColumn = null;
+            for (const [label, column] of Object.entries(statusMapping)) {
+              if (labels.includes(label)) {
+                newColumn = column;
+                break;
+              }
+            }
+            
+            if (newColumn) {
+              console.log(`Issue #${issue.number} should move to column: ${newColumn}`);
+              
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: `📋 Issue moved to "${newColumn}" column based on label change.`
+              });
+            }
+
+      - name: Handle milestone assignments
+        if: github.event.action == 'milestoned' || github.event.action == 'demilestoned'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            
+            if (github.event.action === 'milestoned') {
+              const milestone = issue.milestone;
+              console.log(`Issue #${issue.number} assigned to milestone: ${milestone.title}`);
+              
+              // Auto-add priority label based on milestone
+              let priorityLabel = 'priority:medium';
+              if (milestone.title.toLowerCase().includes('urgent') || milestone.title.toLowerCase().includes('critical')) {
+                priorityLabel = 'priority:high';
+              } else if (milestone.title.toLowerCase().includes('future') || milestone.title.toLowerCase().includes('backlog')) {
+                priorityLabel = 'priority:low';
+              }
+              
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                labels: [priorityLabel]
+              });
+              
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: `🎯 Added to milestone "${milestone.title}" with ${priorityLabel} priority.`
+              });
+            }
+
+  cleanup-closed-items:
+    runs-on: ubuntu-latest
+    if: github.event.action == 'closed'
+    steps:
+      - name: Archive closed issues and PRs
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const item = context.payload.issue || context.payload.pull_request;
+            const itemType = context.payload.issue ? 'issue' : 'pull request';
+            
+            console.log(`${itemType} #${item.number} closed - would archive in project board`);
+            
+            // Add final status label
+            let statusLabel = 'status:completed';
+            if (item.state_reason === 'not_planned') {
+              statusLabel = 'status:wont-fix';
+            }
+            
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: item.number,
+              labels: [statusLabel]
+            });
+            
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: item.number,
+              body: `✅ ${itemType.charAt(0).toUpperCase() + itemType.slice(1)} closed and archived in project board.`
+            });

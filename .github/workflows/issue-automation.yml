@@ -1,0 +1,146 @@
+name: Issue Automation
+
+on:
+  issues:
+    types: [opened, edited, labeled, unlabeled, assigned, unassigned]
+  issue_comment:
+    types: [created, edited]
+
+permissions:
+  issues: write
+  contents: read
+  pull-requests: write
+
+jobs:
+  auto-label:
+    runs-on: ubuntu-latest
+    if: github.event.action == 'opened'
+    steps:
+      - name: Auto-label based on title and body
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const title = issue.title.toLowerCase();
+            const body = issue.body ? issue.body.toLowerCase() : '';
+            
+            const labels = [];
+            
+            // Platform-based labels
+            const platforms = {
+              'discord': 'platform:discord',
+              'telegram': 'platform:telegram', 
+              'whatsapp': 'platform:whatsapp',
+              'slack': 'platform:slack',
+              'twitter': 'platform:twitter',
+              'web chat': 'platform:webchat',
+              'cli': 'platform:cli'
+            };
+            
+            for (const [platform, label] of Object.entries(platforms)) {
+              if (title.includes(platform) || body.includes(platform)) {
+                labels.push(label);
+              }
+            }
+            
+            // Component-based labels
+            if (title.includes('frontend') || body.includes('frontend') || body.includes('react')) {
+              labels.push('component:frontend');
+            }
+            if (title.includes('backend') || body.includes('backend') || body.includes('server') || body.includes('api')) {
+              labels.push('component:backend');
+            }
+            if (title.includes('generator') || body.includes('generator')) {
+              labels.push('component:generator');
+            }
+            if (title.includes('docker') || body.includes('docker') || title.includes('deployment')) {
+              labels.push('component:deployment');
+            }
+            
+            // Priority labels based on keywords
+            if (title.includes('critical') || title.includes('urgent') || body.includes('blocking')) {
+              labels.push('priority:high');
+            } else if (title.includes('nice to have') || body.includes('enhancement')) {
+              labels.push('priority:low');
+            } else {
+              labels.push('priority:medium');
+            }
+            
+            // Complexity estimation
+            if (body.includes('simple') || body.includes('minor')) {
+              labels.push('complexity:low');
+            } else if (body.includes('complex') || body.includes('major') || body.includes('architectural')) {
+              labels.push('complexity:high');
+            } else {
+              labels.push('complexity:medium');
+            }
+            
+            if (labels.length > 0) {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                labels: labels
+              });
+            }
+
+  assign-triage:
+    runs-on: ubuntu-latest
+    if: github.event.action == 'opened' && contains(github.event.issue.labels.*.name, 'needs-triage')
+    steps:
+      - name: Assign to triage team
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Auto-assign based on issue type
+            const issue = context.payload.issue;
+            const labels = issue.labels.map(label => label.name);
+            
+            let assignees = [];
+            
+            if (labels.includes('bug')) {
+              // Assign bugs to maintainers
+              assignees.push('tbowman01');
+            } else if (labels.includes('platform-request')) {
+              // Platform requests need special attention
+              assignees.push('tbowman01');
+            } else if (labels.includes('enhancement')) {
+              // Enhancements can be assigned to contributors
+              assignees.push('tbowman01');
+            }
+            
+            if (assignees.length > 0) {
+              await github.rest.issues.addAssignees({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                assignees: assignees
+              });
+            }
+
+  stale-issues:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+    steps:
+      - uses: actions/stale@v9
+        with:
+          stale-issue-message: |
+            This issue has been automatically marked as stale because it has not had recent activity. 
+            It will be closed if no further activity occurs within 7 days.
+            
+            If this issue is still relevant, please:
+            - Add a comment explaining why it should remain open
+            - Remove the "stale" label
+            - Add the "keep-open" label to prevent future stale marking
+          close-issue-message: |
+            This issue has been automatically closed due to inactivity.
+            If you believe this was closed in error, please reopen it with additional context.
+          stale-issue-label: 'stale'
+          exempt-issue-labels: 'keep-open,in-progress,blocked'
+          days-before-stale: 30
+          days-before-close: 7
+          operations-per-run: 30
+
+on:
+  schedule:
+    - cron: '0 12 * * *'  # Run daily at noon UTC

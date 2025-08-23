@@ -1,0 +1,43 @@
+# GitHub App Manifest for Chat Session Management Builder
+# This file can be used to register a GitHub App via GitHub's app registration API
+
+name: "Chat Session Management Builder Bot"
+description: "Automated issue management, PR review, and project coordination for chat session management systems"
+url: "https://github.com/tbowman01/chat-session-mgmt-builder"
+hook_attributes:
+  url: "https://your-domain.com/github/webhook"
+  active: true
+redirect_url: "https://your-domain.com/github/callback"
+public: false
+
+default_permissions:
+  # Repository permissions
+  contents: write
+  issues: write
+  pull_requests: write
+  metadata: read
+  repository_projects: write
+  
+  # Organization permissions (if needed)
+  members: read
+  organization_projects: write
+
+default_events:
+  - issues
+  - issue_comment
+  - pull_request
+  - pull_request_review
+  - pull_request_review_comment
+  - push
+  - repository
+  - milestone
+  - project
+  - project_card
+  - project_column
+
+# Optional: Pre-configured features
+features:
+  - issue_templates
+  - project_boards
+  - automated_security_fixes
+  - vulnerability_alerts

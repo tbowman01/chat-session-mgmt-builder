@@ -1,0 +1,255 @@
+name: Repository Metrics Collection
+
+on:
+  schedule:
+    # Run daily at 6 AM UTC
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+  actions: read
+
+jobs:
+  collect-metrics:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Collect repository metrics
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const { execSync } = require('child_process');
+            
+            // Get current date
+            const today = new Date().toISOString().split('T')[0];
+            
+            // Initialize metrics object
+            const metrics = {
+              date: today,
+              repository: {
+                name: context.repo.repo,
+                owner: context.repo.owner,
+                url: `https://github.com/${context.repo.owner}/${context.repo.repo}`
+              },
+              code: {},
+              issues: {},
+              pullRequests: {},
+              releases: {},
+              contributors: {},
+              activity: {}
+            };
+            
+            // Code metrics
+            try {
+              const codeStats = execSync('find . -type f \\( -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" \\) -not -path "./node_modules/*" -not -path "./.git/*" | wc -l').toString().trim();
+              const totalLines = execSync('find . -type f \\( -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" \\) -not -path "./node_modules/*" -not -path "./.git/*" -exec wc -l {} \\; | awk "{total += \\$1} END {print total}"').toString().trim();
+              
+              metrics.code = {
+                totalFiles: parseInt(codeStats),
+                totalLines: parseInt(totalLines) || 0,
+                languages: ['TypeScript', 'JavaScript', 'React']
+              };
+            } catch (error) {
+              console.log('Error collecting code metrics:', error.message);
+              metrics.code = { error: error.message };
+            }
+            
+            // Issues metrics
+            try {
+              const { data: issues } = await github.rest.issues.listForRepo({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                state: 'all',
+                per_page: 100
+              });
+              
+              const openIssues = issues.filter(issue => !issue.pull_request && issue.state === 'open');
+              const closedIssues = issues.filter(issue => !issue.pull_request && issue.state === 'closed');
+              
+              // Categorize by labels
+              const bugIssues = issues.filter(issue => issue.labels.some(label => label.name.includes('bug')));
+              const enhancementIssues = issues.filter(issue => issue.labels.some(label => label.name.includes('enhancement')));
+              const platformIssues = issues.filter(issue => issue.labels.some(label => label.name.includes('platform')));
+              
+              metrics.issues = {
+                total: issues.length,
+                open: openIssues.length,
+                closed: closedIssues.length,
+                bugs: bugIssues.length,
+                enhancements: enhancementIssues.length,
+                platformRequests: platformIssues.length,
+                averageTimeToClose: null // Would need more complex calculation
+              };
+            } catch (error) {
+              console.log('Error collecting issue metrics:', error.message);
+              metrics.issues = { error: error.message };
+            }
+            
+            // Pull Request metrics
+            try {
+              const { data: prs } = await github.rest.pulls.list({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                state: 'all',
+                per_page: 100
+              });
+              
+              const openPRs = prs.filter(pr => pr.state === 'open');
+              const closedPRs = prs.filter(pr => pr.state === 'closed');
+              const mergedPRs = prs.filter(pr => pr.merged_at);
+              
+              metrics.pullRequests = {
+                total: prs.length,
+                open: openPRs.length,
+                closed: closedPRs.length,
+                merged: mergedPRs.length,
+                mergeRate: prs.length > 0 ? Math.round((mergedPRs.length / prs.length) * 100) : 0
+              };
+            } catch (error) {
+              console.log('Error collecting PR metrics:', error.message);
+              metrics.pullRequests = { error: error.message };
+            }
+            
+            // Release metrics
+            try {
+              const { data: releases } = await github.rest.repos.listReleases({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                per_page: 10
+              });
+              
+              metrics.releases = {
+                total: releases.length,
+                latest: releases[0]?.tag_name || null,
+                latestDate: releases[0]?.published_at || null
+              };
+            } catch (error) {
+              console.log('Error collecting release metrics:', error.message);
+              metrics.releases = { error: error.message };
+            }
+            
+            // Contributor metrics
+            try {
+              const { data: contributors } = await github.rest.repos.listContributors({
+                owner: context.repo.owner,
+                repo: context.repo.repo
+              });
+              
+              metrics.contributors = {
+                total: contributors.length,
+                topContributors: contributors.slice(0, 5).map(c => ({
+                  login: c.login,
+                  contributions: c.contributions
+                }))
+              };
+            } catch (error) {
+              console.log('Error collecting contributor metrics:', error.message);
+              metrics.contributors = { error: error.message };
+            }
+            
+            // Recent activity (commits in last 30 days)
+            try {
+              const thirtyDaysAgo = new Date();
+              thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+              
+              const { data: commits } = await github.rest.repos.listCommits({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                since: thirtyDaysAgo.toISOString(),
+                per_page: 100
+              });
+              
+              metrics.activity = {
+                commitsLast30Days: commits.length,
+                lastCommitDate: commits[0]?.commit.author.date || null,
+                activeContributors: [...new Set(commits.map(c => c.author?.login).filter(Boolean))].length
+              };
+            } catch (error) {
+              console.log('Error collecting activity metrics:', error.message);
+              metrics.activity = { error: error.message };
+            }
+            
+            // Save metrics to artifact
+            const metricsJson = JSON.stringify(metrics, null, 2);
+            fs.writeFileSync('repository-metrics.json', metricsJson);
+            
+            console.log('Repository Metrics Summary:');
+            console.log('========================');
+            console.log(`📁 Code Files: ${metrics.code.totalFiles || 'N/A'}`);
+            console.log(`📝 Total Lines: ${metrics.code.totalLines || 'N/A'}`);
+            console.log(`🐛 Issues: ${metrics.issues.open || 'N/A'} open, ${metrics.issues.closed || 'N/A'} closed`);
+            console.log(`🔀 PRs: ${metrics.pullRequests.open || 'N/A'} open, ${metrics.pullRequests.merged || 'N/A'} merged`);
+            console.log(`🚀 Releases: ${metrics.releases.total || 'N/A'} total`);
+            console.log(`👥 Contributors: ${metrics.contributors.total || 'N/A'} total`);
+            console.log(`📈 Recent Activity: ${metrics.activity.commitsLast30Days || 'N/A'} commits (30 days)`);
+
+      - name: Upload metrics artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: repository-metrics-${{ github.run_number }}
+          path: repository-metrics.json
+          retention-days: 90
+
+      - name: Create metrics summary comment
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const metrics = JSON.parse(fs.readFileSync('repository-metrics.json', 'utf8'));
+            
+            const summary = `## 📊 Repository Metrics Report
+            
+            **Generated**: ${metrics.date}
+            
+            ### 📁 Codebase
+            - **Files**: ${metrics.code.totalFiles || 'N/A'} source files
+            - **Lines**: ${metrics.code.totalLines || 'N/A'} total lines of code
+            
+            ### 🐛 Issues
+            - **Open**: ${metrics.issues.open || 'N/A'}
+            - **Closed**: ${metrics.issues.closed || 'N/A'}
+            - **Bugs**: ${metrics.issues.bugs || 'N/A'}
+            - **Enhancements**: ${metrics.issues.enhancements || 'N/A'}
+            - **Platform Requests**: ${metrics.issues.platformRequests || 'N/A'}
+            
+            ### 🔀 Pull Requests
+            - **Open**: ${metrics.pullRequests.open || 'N/A'}
+            - **Merged**: ${metrics.pullRequests.merged || 'N/A'}
+            - **Merge Rate**: ${metrics.pullRequests.mergeRate || 'N/A'}%
+            
+            ### 🚀 Releases
+            - **Total**: ${metrics.releases.total || 'N/A'}
+            - **Latest**: ${metrics.releases.latest || 'N/A'}
+            
+            ### 👥 Contributors
+            - **Total**: ${metrics.contributors.total || 'N/A'}
+            - **Active (30d)**: ${metrics.activity.activeContributors || 'N/A'}
+            
+            ### 📈 Recent Activity (30 days)
+            - **Commits**: ${metrics.activity.commitsLast30Days || 'N/A'}
+            - **Last Commit**: ${metrics.activity.lastCommitDate ? new Date(metrics.activity.lastCommitDate).toLocaleDateString() : 'N/A'}
+            
+            ---
+            *Metrics collected automatically by GitHub Actions*`;
+            
+            // If this was triggered manually, create an issue with the metrics
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `📊 Repository Metrics Report - ${metrics.date}`,
+              body: summary,
+              labels: ['metrics', 'automated']
+            });

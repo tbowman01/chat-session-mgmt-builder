@@ -1,0 +1,226 @@
+name: Pull Request Automation
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, ready_for_review]
+  pull_request_review:
+    types: [submitted]
+
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+
+jobs:
+  pr-validation:
+    runs-on: ubuntu-latest
+    if: github.event.action == 'opened' || github.event.action == 'synchronize'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Run linting
+        run: npm run lint
+
+      - name: Run type checking
+        run: npm run typecheck
+
+      - name: Auto-label PR based on changes
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: files } = await github.rest.pulls.listFiles({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+            });
+            
+            const labels = new Set();
+            
+            files.forEach(file => {
+              const path = file.filename;
+              
+              // Component labels
+              if (path.startsWith('frontend/')) labels.add('component:frontend');
+              if (path.startsWith('server/')) labels.add('component:backend');
+              if (path.includes('generators/')) labels.add('component:generator');
+              if (path.includes('.github/')) labels.add('component:ci-cd');
+              if (path.includes('docker') || path.includes('Dockerfile')) labels.add('component:deployment');
+              
+              // File type labels
+              if (path.endsWith('.ts') || path.endsWith('.tsx')) labels.add('language:typescript');
+              if (path.endsWith('.js') || path.endsWith('.jsx')) labels.add('language:javascript');
+              if (path.endsWith('.md')) labels.add('type:documentation');
+              if (path.includes('test') || path.includes('.spec.') || path.includes('.test.')) labels.add('type:testing');
+              
+              // Platform labels
+              if (path.includes('discord')) labels.add('platform:discord');
+              if (path.includes('telegram')) labels.add('platform:telegram');
+              if (path.includes('whatsapp')) labels.add('platform:whatsapp');
+              if (path.includes('slack')) labels.add('platform:slack');
+              if (path.includes('twitter')) labels.add('platform:twitter');
+              if (path.includes('webchat')) labels.add('platform:webchat');
+              if (path.includes('cli')) labels.add('platform:cli');
+            });
+            
+            // Size labels based on changes
+            const additions = files.reduce((sum, file) => sum + file.additions, 0);
+            const deletions = files.reduce((sum, file) => sum + file.deletions, 0);
+            const totalChanges = additions + deletions;
+            
+            if (totalChanges < 50) labels.add('size:small');
+            else if (totalChanges < 200) labels.add('size:medium');
+            else if (totalChanges < 500) labels.add('size:large');
+            else labels.add('size:extra-large');
+            
+            if (labels.size > 0) {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                labels: Array.from(labels)
+              });
+            }
+
+  auto-assign-reviewers:
+    runs-on: ubuntu-latest
+    if: github.event.action == 'opened'
+    steps:
+      - name: Auto-assign reviewers
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            
+            // Don't assign reviewers to draft PRs
+            if (pr.draft) return;
+            
+            const author = pr.user.login;
+            const reviewers = [];
+            
+            // Always assign the repository owner as a reviewer
+            if (author !== 'tbowman01') {
+              reviewers.push('tbowman01');
+            }
+            
+            if (reviewers.length > 0) {
+              await github.rest.pulls.requestReviewers({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: pr.number,
+                reviewers: reviewers
+              });
+            }
+
+  pr-comment-commands:
+    runs-on: ubuntu-latest
+    if: github.event.issue.pull_request && contains(github.event.comment.body, '/') && github.event.comment.user.login != 'github-actions[bot]'
+    steps:
+      - name: Handle PR commands
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const comment = context.payload.comment.body.trim();
+            const commentUser = context.payload.comment.user.login;
+            const prNumber = context.payload.issue.number;
+            
+            // Only allow certain users to execute commands
+            const authorizedUsers = ['tbowman01'];
+            if (!authorizedUsers.includes(commentUser)) {
+              return;
+            }
+            
+            if (comment === '/approve' || comment === '/lgtm') {
+              // Add approval label
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                labels: ['approved']
+              });
+              
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body: '✅ PR marked as approved by @' + commentUser
+              });
+            }
+            
+            if (comment === '/needs-work' || comment === '/changes-requested') {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                labels: ['needs-work']
+              });
+              
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body: '⚠️ PR marked as needing work by @' + commentUser
+              });
+            }
+            
+            if (comment === '/ready-to-merge') {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                labels: ['ready-to-merge']
+              });
+              
+              // Remove other status labels
+              const labelsToRemove = ['needs-work', 'in-review'];
+              for (const label of labelsToRemove) {
+                try {
+                  await github.rest.issues.removeLabel({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: prNumber,
+                    name: label
+                  });
+                } catch (e) {
+                  // Label might not exist, ignore error
+                }
+              }
+              
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body: '🚀 PR marked as ready to merge by @' + commentUser
+              });
+            }
+
+  security-check:
+    runs-on: ubuntu-latest
+    if: github.event.action == 'opened' || github.event.action == 'synchronize'
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Run security audit
+        run: npm audit --audit-level high
+        continue-on-error: true
+      
+      - name: Check for secrets in PR
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event.repository.default_branch }}
+          head: HEAD
+          extra_args: --debug --only-verified

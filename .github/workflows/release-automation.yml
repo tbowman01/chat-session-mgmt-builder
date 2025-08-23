@@ -1,0 +1,287 @@
+name: Release Automation
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: 'Release type'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+      prerelease:
+        description: 'Create as prerelease'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  prepare-release:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    outputs:
+      new_version: ${{ steps.version.outputs.new_version }}
+      changelog: ${{ steps.changelog.outputs.changelog }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Generate new version
+        id: version
+        run: |
+          current_version=$(node -p "require('./package.json').version")
+          echo "Current version: $current_version"
+          
+          # Calculate new version
+          IFS='.' read -ra VERSION_PARTS <<< "$current_version"
+          major=${VERSION_PARTS[0]}
+          minor=${VERSION_PARTS[1]}
+          patch=${VERSION_PARTS[2]}
+          
+          case "${{ github.event.inputs.release_type }}" in
+            "major")
+              major=$((major + 1))
+              minor=0
+              patch=0
+              ;;
+            "minor")
+              minor=$((minor + 1))
+              patch=0
+              ;;
+            "patch")
+              patch=$((patch + 1))
+              ;;
+          esac
+          
+          new_version="$major.$minor.$patch"
+          echo "New version: $new_version"
+          echo "new_version=$new_version" >> $GITHUB_OUTPUT
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # Get commits since last release
+          last_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          
+          if [ -n "$last_tag" ]; then
+            commits=$(git log --pretty=format:"- %s (%h)" $last_tag..HEAD)
+          else
+            commits=$(git log --pretty=format:"- %s (%h)")
+          fi
+          
+          # Group commits by type
+          features=$(echo "$commits" | grep -i "feat\|feature\|add" || true)
+          fixes=$(echo "$commits" | grep -i "fix\|bug" || true)
+          improvements=$(echo "$commits" | grep -i "improve\|enhance\|update\|refactor" || true)
+          
+          changelog="## What's Changed\n\n"
+          
+          if [ -n "$features" ]; then
+            changelog="${changelog}### ✨ New Features\n$features\n\n"
+          fi
+          
+          if [ -n "$fixes" ]; then
+            changelog="${changelog}### 🐛 Bug Fixes\n$fixes\n\n"
+          fi
+          
+          if [ -n "$improvements" ]; then
+            changelog="${changelog}### 🔧 Improvements\n$improvements\n\n"
+          fi
+          
+          changelog="${changelog}**Full Changelog**: https://github.com/${{ github.repository }}/compare/$last_tag...v${{ steps.version.outputs.new_version }}"
+          
+          # Save changelog to file and output
+          echo -e "$changelog" > CHANGELOG_TEMP.md
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          cat CHANGELOG_TEMP.md >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Update version and create release commit
+        run: |
+          # Update package.json files
+          npm version ${{ steps.version.outputs.new_version }} --no-git-tag-version
+          cd frontend && npm version ${{ steps.version.outputs.new_version }} --no-git-tag-version
+          cd ../server && npm version ${{ steps.version.outputs.new_version }} --no-git-tag-version
+          
+          # Commit changes
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "chore: bump version to v${{ steps.version.outputs.new_version }}"
+          
+          # Create and push tag
+          git tag "v${{ steps.version.outputs.new_version }}"
+          git push origin main
+          git push origin "v${{ steps.version.outputs.new_version }}"
+
+  create-release:
+    runs-on: ubuntu-latest
+    needs: prepare-release
+    if: always() && (needs.prepare-release.result == 'success' || github.event_name == 'push')
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build project
+        run: npm run build
+
+      - name: Create release assets
+        run: |
+          mkdir -p release-assets
+          
+          # Create source archive
+          git archive --format=zip --prefix=chat-session-mgmt-builder/ HEAD > release-assets/source.zip
+          
+          # Create frontend build archive
+          cd frontend && tar -czf ../release-assets/frontend-build.tar.gz dist/
+          cd ..
+          
+          # Create server build archive if it exists
+          if [ -d "server/dist" ]; then
+            cd server && tar -czf ../release-assets/server-build.tar.gz dist/
+            cd ..
+          fi
+          
+          # Create documentation archive
+          tar -czf release-assets/docs.tar.gz docs/ README.md
+
+      - name: Get version and generate changelog
+        id: release_info
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            version="${{ needs.prepare-release.outputs.new_version }}"
+            changelog="${{ needs.prepare-release.outputs.changelog }}"
+          else
+            version="${GITHUB_REF#refs/tags/}"
+            # Generate changelog from recent commits
+            last_tag=$(git describe --tags --abbrev=0 --exclude="$version" 2>/dev/null || echo "")
+            if [ -n "$last_tag" ]; then
+              commits=$(git log --pretty=format:"- %s (%h)" $last_tag..HEAD)
+            else
+              commits=$(git log --pretty=format:"- %s (%h)" --max-count=10)
+            fi
+            changelog="## Changes\n\n$commits\n\n**Full Changelog**: https://github.com/${{ github.repository }}/compare/$last_tag...$version"
+          fi
+          
+          echo "version=$version" >> $GITHUB_OUTPUT
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo -e "$changelog" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.release_info.outputs.version }}
+          name: Release ${{ steps.release_info.outputs.version }}
+          body: ${{ steps.release_info.outputs.changelog }}
+          draft: false
+          prerelease: ${{ github.event.inputs.prerelease == 'true' }}
+          files: |
+            release-assets/*
+          generate_release_notes: true
+
+      - name: Update issues and PRs
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const version = "${{ steps.release_info.outputs.version }}";
+            
+            // Find issues and PRs fixed in this release
+            const { data: commits } = await github.rest.repos.listCommits({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              since: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString() // Last 30 days
+            });
+            
+            const fixedIssues = new Set();
+            const releasedPRs = new Set();
+            
+            for (const commit of commits) {
+              const message = commit.commit.message;
+              
+              // Look for "fixes #123" or "closes #123" patterns
+              const fixMatches = message.match(/(?:fixes?|closes?|resolves?)\s+#(\d+)/gi);
+              if (fixMatches) {
+                for (const match of fixMatches) {
+                  const issueNumber = match.match(/\d+/)[0];
+                  fixedIssues.add(parseInt(issueNumber));
+                }
+              }
+              
+              // Look for PR merge commits
+              const prMatch = message.match(/Merge pull request #(\d+)/);
+              if (prMatch) {
+                releasedPRs.add(parseInt(prMatch[1]));
+              }
+            }
+            
+            // Comment on fixed issues
+            for (const issueNumber of fixedIssues) {
+              try {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issueNumber,
+                  body: `🎉 This issue has been resolved in release ${version}!`
+                });
+                
+                // Add released label
+                await github.rest.issues.addLabels({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issueNumber,
+                  labels: ['status:released']
+                });
+              } catch (error) {
+                console.log(`Could not update issue #${issueNumber}: ${error.message}`);
+              }
+            }
+            
+            // Comment on released PRs
+            for (const prNumber of releasedPRs) {
+              try {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: prNumber,
+                  body: `🚀 This pull request has been included in release ${version}!`
+                });
+              } catch (error) {
+                console.log(`Could not update PR #${prNumber}: ${error.message}`);
+              }
+            }

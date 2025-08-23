@@ -1,0 +1,128 @@
+name: 🔌 Platform Support Request
+description: Request support for a new chat platform
+title: "[PLATFORM] Add support for "
+labels: ["platform-request", "enhancement"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Request support for a new chat platform or messaging service.
+
+  - type: input
+    id: platform_name
+    attributes:
+      label: Platform Name
+      description: Name of the chat platform or messaging service
+      placeholder: e.g., Microsoft Teams, Mattermost, IRC
+    validations:
+      required: true
+
+  - type: textarea
+    id: platform_description
+    attributes:
+      label: Platform Description
+      description: Brief description of the platform and its main features
+      placeholder: Describe the platform, its user base, and key characteristics...
+    validations:
+      required: true
+
+  - type: input
+    id: api_docs
+    attributes:
+      label: API Documentation URL
+      description: Link to the platform's API documentation
+      placeholder: https://...
+    validations:
+      required: false
+
+  - type: dropdown
+    id: api_type
+    attributes:
+      label: API Type
+      description: What type of API does the platform provide?
+      options:
+        - REST API
+        - WebSocket API
+        - GraphQL API
+        - SDK/Library
+        - Webhook-based
+        - Multiple Types
+        - Other/Unknown
+    validations:
+      required: true
+
+  - type: dropdown
+    id: auth_method
+    attributes:
+      label: Authentication Method
+      description: How does the platform handle authentication?
+      options:
+        - API Keys
+        - OAuth 2.0
+        - JWT Tokens
+        - Bot Tokens
+        - Username/Password
+        - Multiple Methods
+        - Other/Unknown
+    validations:
+      required: false
+
+  - type: textarea
+    id: key_features
+    attributes:
+      label: Key Features to Support
+      description: What chat management features would be most important for this platform?
+      value: |
+        - [ ] Send/receive messages
+        - [ ] User management
+        - [ ] Channel/room management
+        - [ ] File attachments
+        - [ ] Rich formatting
+        - [ ] Slash commands
+        - [ ] Webhooks
+        - [ ] Real-time events
+        - [ ] Message threading
+        - [ ] User presence
+        - [ ] Other: ___________
+    validations:
+      required: true
+
+  - type: textarea
+    id: use_cases
+    attributes:
+      label: Use Cases
+      description: Describe specific use cases or scenarios where you'd use this platform
+      placeholder: |
+        1. Customer support automation
+        2. Team collaboration
+        3. Community management
+        etc.
+    validations:
+      required: true
+
+  - type: input
+    id: user_base
+    attributes:
+      label: Target User Base
+      description: Who would primarily use this platform integration?
+      placeholder: e.g., Enterprise teams, Gaming communities, Open source projects
+
+  - type: dropdown
+    id: urgency
+    attributes:
+      label: Urgency
+      description: How urgently do you need this platform support?
+      options:
+        - Low - Would be nice to have eventually
+        - Medium - Needed for upcoming project
+        - High - Required for current work
+        - Critical - Blocking current implementation
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional_info
+    attributes:
+      label: Additional Information
+      description: Any other relevant information about the platform or your requirements
