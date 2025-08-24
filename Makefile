@@ -30,7 +30,7 @@ INTERMEDIATE_XP := 500
 ADVANCED_XP := 1000
 EXPERT_XP := 2000
 
-.PHONY: help welcome journey skills achievements setup-env
+.PHONY: help welcome journey skills achievements setup-env dev dev-bypass dev-logs
 .DEFAULT_GOAL := welcome
 
 # 🌟 Welcome message with motivational quote
@@ -61,7 +61,8 @@ help:
 	@echo "  $(CYAN)setup$(RESET)            🔧 Initialize your development environment"  
 	@echo "  $(CYAN)setup-env$(RESET)        🔐 Create .env files with development defaults"
 	@echo "  $(CYAN)install$(RESET)          📦 Install dependencies with progress tracking"
-	@echo "  $(CYAN)dev$(RESET)              🎮 Start development servers (unlock: Quick Starter)"
+	@echo "  $(CYAN)dev$(RESET)              🎮 Start development servers with auth bypass (unlock: Quick Starter)"
+	@echo "  $(CYAN)dev-bypass$(RESET)       🔓 Start simple server with auth bypass only"
 	@echo "  $(CYAN)dev-logs$(RESET)         📝 View development logs with real-time updates"
 	@echo ""
 	@echo "$(BOLD)🐳 Container Mastery (Intermediate):$(RESET)"
@@ -252,9 +253,22 @@ dev:
 	@echo "$(BOLD)$(GREEN)🎮 Starting development servers...$(RESET)"
 	@echo "$(CYAN)Frontend: http://localhost:3000$(RESET)"
 	@echo "$(CYAN)Backend:  http://localhost:8787$(RESET)"
+	@echo "$(PURPLE)🔓 Authentication bypass: ENABLED for development$(RESET)"
 	@echo "$(YELLOW)Press Ctrl+C to stop servers$(RESET)"
-	@npm run dev || echo "$(RED)❌ Development servers failed to start$(RESET)"
+	@NODE_ENV=development BYPASS_AUTH=true npm run dev || echo "$(RED)❌ Development servers failed to start$(RESET)"
 	$(call track_command,"Development servers launched",20)
+	@if ! grep -q "Quick Starter" $(ACHIEVEMENTS_FILE) 2>/dev/null; then \
+		echo "🚀 ACHIEVEMENT UNLOCKED: Quick Starter - Development environment launched!" >> $(ACHIEVEMENTS_FILE); \
+	fi
+
+# 🔓 Start simple server with authentication bypass only
+dev-bypass:
+	@echo "$(BOLD)$(GREEN)🔓 Starting simple server with authentication bypass...$(RESET)"
+	@echo "$(CYAN)Backend:  http://localhost:8787$(RESET)"
+	@echo "$(PURPLE)🔓 Authentication bypass: ENABLED$(RESET)"
+	@echo "$(YELLOW)Press Ctrl+C to stop server$(RESET)"
+	@cd server && npm run dev:bypass || echo "$(RED)❌ Simple server failed to start$(RESET)"
+	$(call track_command,"Simple development server launched",15)
 	@if ! grep -q "Quick Starter" $(ACHIEVEMENTS_FILE) 2>/dev/null; then \
 		echo "🚀 ACHIEVEMENT UNLOCKED: Quick Starter - Development environment launched!" >> $(ACHIEVEMENTS_FILE); \
 	fi

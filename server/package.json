@@ -6,6 +6,7 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
+    "dev:bypass": "NODE_ENV=development BYPASS_AUTH=true node src/simpleServer.js",
     "build": "tsc --skipLibCheck --noEmitOnError false || true && tsc-alias",
     "start": "node dist/index.js",
     "test": "jest",
