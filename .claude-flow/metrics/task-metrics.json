@@ -1,10 +1,26 @@
 [
   {
-    "id": "cmd-hooks-1755980716686",
-    "type": "hooks",
+    "id": "cmd-sparc-1755986909050",
+    "type": "sparc",
     "success": true,
-    "duration": 69.135986,
-    "timestamp": 1755980716756,
+    "duration": 2.499770999998873,
+    "timestamp": 1755986909053,
+    "metadata": {}
+  },
+  {
+    "id": "cmd-sparc-1755986962874",
+    "type": "sparc",
+    "success": true,
+    "duration": 33110.35062,
+    "timestamp": 1755986996005,
+    "metadata": {}
+  },
+  {
+    "id": "cmd-sparc-1755987079743",
+    "type": "sparc",
+    "success": true,
+    "duration": 724442.627749,
+    "timestamp": 1755987804646,
     "metadata": {}
   }
 ]
