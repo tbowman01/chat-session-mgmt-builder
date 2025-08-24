@@ -30,7 +30,7 @@ INTERMEDIATE_XP := 500
 ADVANCED_XP := 1000
 EXPERT_XP := 2000
 
-.PHONY: help welcome journey skills achievements
+.PHONY: help welcome journey skills achievements setup-env
 .DEFAULT_GOAL := welcome
 
 # 🌟 Welcome message with motivational quote
@@ -58,7 +58,8 @@ help:
 	@echo "  $(CYAN)achievements$(RESET)     🏆 See all your unlocked achievements"
 	@echo ""
 	@echo "$(BOLD)🏠 Local Development (Beginner Friendly):$(RESET)"
-	@echo "  $(CYAN)setup$(RESET)            🔧 Initialize your development environment"
+	@echo "  $(CYAN)setup$(RESET)            🔧 Initialize your development environment"  
+	@echo "  $(CYAN)setup-env$(RESET)        🔐 Create .env files with development defaults"
 	@echo "  $(CYAN)install$(RESET)          📦 Install dependencies with progress tracking"
 	@echo "  $(CYAN)dev$(RESET)              🎮 Start development servers (unlock: Quick Starter)"
 	@echo "  $(CYAN)dev-logs$(RESET)         📝 View development logs with real-time updates"
@@ -225,8 +226,15 @@ setup:
 	fi
 	@echo "$(GREEN)✅ Checking Docker...$(RESET)"
 	@docker --version || echo "$(YELLOW)⚠️  Docker not found. Install Docker for container features$(RESET)"
+	@echo "$(GREEN)✅ Setting up environment files...$(RESET)"
+	@$(MAKE) setup-env
 	@echo "$(GREEN)🎉 Development environment ready!$(RESET)"
 	$(call track_command,"Environment setup completed",25)
+
+# 🔐 Setup environment files
+setup-env:
+	@echo "$(CYAN)🔐 Setting up environment configuration files...$(RESET)"
+	@./setup-env-standalone.sh
 
 # 📦 Install dependencies with progress
 install:
