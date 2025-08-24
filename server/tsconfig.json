@@ -24,7 +24,7 @@
     "declarationMap": true,
     "sourceMap": true,
     "removeComments": true,
-    "noEmitOnError": true,
+    "noEmitOnError": false,
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"],

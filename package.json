@@ -20,7 +20,7 @@
     "test:e2e:auth": "playwright test tests/e2e/specs/auth.spec.ts",
     "test:e2e:wizard": "playwright test tests/e2e/specs/wizard.spec.ts",
     "test:all": "npm run test && npm run test:e2e",
-    "lint": "eslint . --ext .ts,.tsx",
+    "lint": "eslint frontend/src server/src --ext .ts,.tsx --ignore-path .gitignore",
     "typecheck": "cd frontend && npm run typecheck && cd ../server && npm run typecheck"
   },
   "devDependencies": {

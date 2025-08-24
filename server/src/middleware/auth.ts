@@ -1,5 +1,4 @@
 import { Request, Response, NextFunction } from 'express';
-import { User } from '../types/index.js';
 import { 
   extractTokenFromHeader, 
   extractTokenFromCookie, 
@@ -11,7 +10,7 @@ import logger from '../utils/logger.js';
 /**
  * Authentication middleware - verifies JWT token and attaches user to request
  */
-export function authenticateToken(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
+export function authenticateToken(req: Request, res: Response, next: NextFunction): void {
   // Extract token from Authorization header or cookie
   let token = extractTokenFromHeader(req);
   
@@ -56,9 +55,14 @@ export function authenticateToken(req: AuthenticatedRequest, res: Response, next
   req.user = {
     id: payload.userId,
     email: payload.email,
+    name: payload.email.split('@')[0],
     role: payload.role as 'admin' | 'user',
     provider: payload.provider as 'local' | 'github' | 'google',
-  } as User;
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    emailVerified: true,
+    isActive: true,
+  };
 
   logger.debug('User authenticated', { 
     userId: req.user.id, 
@@ -81,9 +85,14 @@ export function optionalAuth(req: Request, res: Response, next: NextFunction): v
       req.user = {
         id: payload.userId,
         email: payload.email,
+        name: payload.email.split('@')[0],
         role: payload.role as 'admin' | 'user',
         provider: payload.provider as 'local' | 'github' | 'google',
-      } as User;
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        emailVerified: true,
+        isActive: true,
+      };
     }
   }
 

@@ -21,8 +21,9 @@ export interface TokenPair {
 export interface AuthenticatedUser {
   id: string;
   email: string;
-  role: string;
-  provider?: string;
+  name: string;
+  role: 'admin' | 'user';
+  provider?: 'local' | 'github' | 'google';
   lastLogin?: Date;
 }
 

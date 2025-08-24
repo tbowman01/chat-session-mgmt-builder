@@ -196,9 +196,33 @@ setup:
 	@echo "$(BOLD)$(CYAN)🔧 Setting up your development environment...$(RESET)"
 	@$(MAKE) journey
 	@echo "$(GREEN)✅ Checking Node.js version...$(RESET)"
-	@node --version || (echo "$(RED)❌ Node.js not found. Please install Node.js 22 LTS$(RESET)" && exit 1)
+	@node_version=$$(node --version 2>/dev/null | sed 's/v//'); \
+	if [ -z "$$node_version" ]; then \
+		echo "$(RED)❌ Node.js not found. Please install Node.js 22 LTS$(RESET)"; \
+		exit 1; \
+	else \
+		echo "$(CYAN)Found Node.js $$node_version$(RESET)"; \
+		major_version=$$(echo $$node_version | cut -d'.' -f1); \
+		if [ "$$major_version" -lt 18 ]; then \
+			echo "$(YELLOW)⚠️  Node.js $$node_version detected. Recommended: v22 LTS$(RESET)"; \
+		fi; \
+	fi
 	@echo "$(GREEN)✅ Checking npm version...$(RESET)"
-	@npm --version || (echo "$(RED)❌ npm not found$(RESET)" && exit 1)
+	@npm_version=$$(npm --version 2>/dev/null); \
+	if [ -z "$$npm_version" ]; then \
+		echo "$(YELLOW)⚠️  npm path issue detected$(RESET)"; \
+		echo "$(CYAN)Trying alternative npm detection...$(RESET)"; \
+		if which npm >/dev/null 2>&1; then \
+			npm_path=$$(which npm); \
+			echo "$(CYAN)npm found at: $$npm_path$(RESET)"; \
+			echo "$(YELLOW)Run './fix-npm.sh' to resolve npm path issues$(RESET)"; \
+		else \
+			echo "$(RED)❌ npm not found in PATH$(RESET)"; \
+			exit 1; \
+		fi; \
+	else \
+		echo "$(CYAN)Found npm $$npm_version$(RESET)"; \
+	fi
 	@echo "$(GREEN)✅ Checking Docker...$(RESET)"
 	@docker --version || echo "$(YELLOW)⚠️  Docker not found. Install Docker for container features$(RESET)"
 	@echo "$(GREEN)🎉 Development environment ready!$(RESET)"
@@ -345,7 +369,7 @@ performance:
 build:
 	@echo "$(BOLD)$(GREEN)📦 Creating production build...$(RESET)"
 	@echo "$(YELLOW)Building for production excellence! 🏗️$(RESET)"
-	@npm run build
+	@npm run build:frontend && npm run build:server
 	@echo "$(GREEN)🎉 Production build completed!$(RESET)"
 	$(call track_command,"Production build created",35)
 	@if ! grep -q "Build Master" $(ACHIEVEMENTS_FILE) 2>/dev/null; then \

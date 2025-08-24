@@ -265,6 +265,21 @@ import { Request } from 'express';
 // Extend Express Request interface to include user
 declare global {
   namespace Express {
+    interface User {
+      id: string;
+      email: string;
+      name: string;
+      role: 'admin' | 'user';
+      provider: 'local' | 'github' | 'google';
+      providerId?: string;
+      avatar?: string;
+      createdAt: Date;
+      updatedAt: Date;
+      lastLogin?: Date;
+      emailVerified: boolean;
+      isActive: boolean;
+    }
+    
     interface Request {
       user?: User;
       authSession?: Session;
