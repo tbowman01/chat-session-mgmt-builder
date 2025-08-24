@@ -5,6 +5,8 @@ on:
     types: [opened, edited, labeled, unlabeled, assigned, unassigned]
   issue_comment:
     types: [created, edited]
+  schedule:
+    - cron: '0 12 * * *'  # Run daily at noon UTC
 
 permissions:
   issues: write
@@ -140,7 +142,3 @@ jobs:
           days-before-stale: 30
           days-before-close: 7
           operations-per-run: 30
-
-on:
-  schedule:
-    - cron: '0 12 * * *'  # Run daily at noon UTC
