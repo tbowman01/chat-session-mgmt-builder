@@ -4,6 +4,16 @@ import dotenv from 'dotenv';
 // Load test environment variables
 dotenv.config({ path: '.env.test' });
 
+// Mock import.meta for ES module compatibility in Jest
+Object.defineProperty(globalThis, 'import', {
+  value: {
+    meta: {
+      url: 'file://test.js'
+    }
+  },
+  writable: true
+});
+
 // Mock console methods to reduce test noise
 global.console = {
   ...console,
@@ -16,6 +26,7 @@ global.console = {
 // Set test environment
 process.env.NODE_ENV = 'test';
 process.env.LOG_LEVEL = 'error';
+process.env.PORT = '0'; // Use random available port for tests
 
 // Mock API tokens for tests
 process.env.NOTION_TOKEN = 'secret_test_token_12345678901234567890123456';
