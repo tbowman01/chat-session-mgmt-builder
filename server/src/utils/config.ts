@@ -30,8 +30,8 @@ export const config: ServerConfig = {
   auth: {
     jwtSecret: process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production',
     refreshTokenSecret: process.env.REFRESH_TOKEN_SECRET || 'your-super-secret-refresh-token-key-change-in-production',
-    accessTokenExpiry: process.env.ACCESS_TOKEN_EXPIRY || '15m',
-    refreshTokenExpiry: process.env.REFRESH_TOKEN_EXPIRY || '7d',
+    accessTokenExpiry: process.env.JWT_EXPIRES_IN || '1h',
+    refreshTokenExpiry: process.env.REFRESH_TOKEN_EXPIRES_IN || '7d',
     issuer: process.env.JWT_ISSUER || 'chat-session-mgmt-api',
     audience: process.env.JWT_AUDIENCE || 'chat-session-mgmt-client',
     github: {
@@ -55,6 +55,12 @@ export const config: ServerConfig = {
  * Validate required environment variables
  */
 export function validateConfig(): void {
+  // Skip validation in development if auth bypass is enabled
+  if (process.env.NODE_ENV === 'development' && process.env.BYPASS_AUTH === 'true') {
+    console.log('✅ Configuration validation skipped (development auth bypass mode)');
+    return;
+  }
+
   const requiredVars = ['NOTION_TOKEN', 'AIRTABLE_TOKEN'];
   const missing = requiredVars.filter(varName => !process.env[varName]);
   

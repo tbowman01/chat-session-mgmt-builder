@@ -18,6 +18,7 @@ import {
 } from '../utils/jwt.js';
 import { userService } from '../services/auth/userService.js';
 import { authenticateToken, authRateLimit, logAuthEvent } from '../middleware/auth.js';
+import { simpleDevAuth } from '../middleware/devAuth.js';
 import logger from '../utils/logger.js';
 
 const router = Router();
@@ -408,7 +409,7 @@ router.post('/logout-all',
  * GET /api/auth/me - Get current user info
  */
 router.get('/me',
-  authenticateToken,
+  simpleDevAuth,
   async (req: Request, res: Response): Promise<void> => {
     try {
       if (!req.user) {

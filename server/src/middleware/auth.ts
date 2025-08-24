@@ -11,6 +11,31 @@ import logger from '../utils/logger.js';
  * Authentication middleware - verifies JWT token and attaches user to request
  */
 export function authenticateToken(req: Request, res: Response, next: NextFunction): void {
+  // Development bypass - skip authentication in development mode
+  if (process.env.NODE_ENV === 'development' && process.env.BYPASS_AUTH === 'true') {
+    // Create a mock user for development
+    req.user = {
+      id: 'dev-user-123',
+      email: 'dev@example.com',
+      name: 'Development User',
+      role: 'admin',
+      provider: 'local',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      emailVerified: true,
+      isActive: true,
+    };
+
+    logger.debug('Authentication bypassed in development mode', { 
+      userId: req.user.id, 
+      email: req.user.email,
+      route: req.path 
+    });
+
+    next();
+    return;
+  }
+
   // Extract token from Authorization header or cookie
   let token = extractTokenFromHeader(req);
   
