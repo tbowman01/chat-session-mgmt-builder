@@ -27,6 +27,28 @@ export const config: ServerConfig = {
     level: process.env.LOG_LEVEL || 'info',
     file: process.env.LOG_FILE || './logs/server.log',
   },
+  auth: {
+    jwtSecret: process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production',
+    refreshTokenSecret: process.env.REFRESH_TOKEN_SECRET || 'your-super-secret-refresh-token-key-change-in-production',
+    accessTokenExpiry: process.env.ACCESS_TOKEN_EXPIRY || '15m',
+    refreshTokenExpiry: process.env.REFRESH_TOKEN_EXPIRY || '7d',
+    issuer: process.env.JWT_ISSUER || 'chat-session-mgmt-api',
+    audience: process.env.JWT_AUDIENCE || 'chat-session-mgmt-client',
+    github: {
+      clientId: process.env.GITHUB_CLIENT_ID || '',
+      clientSecret: process.env.GITHUB_CLIENT_SECRET || '',
+      callbackUrl: process.env.GITHUB_CALLBACK_URL || 'http://localhost:8787/api/auth/github/callback',
+    },
+    google: {
+      clientId: process.env.GOOGLE_CLIENT_ID || '',
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
+      callbackUrl: process.env.GOOGLE_CALLBACK_URL || 'http://localhost:8787/api/auth/google/callback',
+    },
+    session: {
+      secret: process.env.SESSION_SECRET || 'your-super-secret-session-key-change-in-production',
+      maxAge: parseInt(process.env.SESSION_MAX_AGE || '604800000', 10), // 7 days
+    },
+  },
 };
 
 /**

@@ -112,6 +112,28 @@ export interface ServerConfig {
     level: string;
     file: string;
   };
+  auth: {
+    jwtSecret: string;
+    refreshTokenSecret: string;
+    accessTokenExpiry: string;
+    refreshTokenExpiry: string;
+    issuer: string;
+    audience: string;
+    github: {
+      clientId: string;
+      clientSecret: string;
+      callbackUrl: string;
+    };
+    google: {
+      clientId: string;
+      clientSecret: string;
+      callbackUrl: string;
+    };
+    session: {
+      secret: string;
+      maxAge: number;
+    };
+  };
 }
 
 // Middleware types
@@ -165,4 +187,92 @@ export interface NotionServiceConfig {
 export interface AirtableServiceConfig {
   token: string;
   endpointUrl: string;
+}
+
+// Authentication types
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  role: 'admin' | 'user';
+  provider: 'local' | 'github' | 'google';
+  providerId?: string;
+  avatar?: string;
+  createdAt: Date;
+  updatedAt: Date;
+  lastLogin?: Date;
+  emailVerified: boolean;
+  isActive: boolean;
+}
+
+export interface Session {
+  id: string;
+  userId: string;
+  refreshToken: string;
+  expiresAt: Date;
+  createdAt: Date;
+  lastUsedAt: Date;
+  userAgent?: string;
+  ipAddress?: string;
+  isActive: boolean;
+}
+
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface RegisterRequest {
+  email: string;
+  password: string;
+  name: string;
+}
+
+export interface AuthResponse {
+  user: Omit<User, 'password'>;
+  accessToken: string;
+  refreshToken?: string;
+  expiresIn: number;
+}
+
+export interface RefreshTokenRequest {
+  refreshToken: string;
+}
+
+export interface PasswordResetRequest {
+  email: string;
+}
+
+export interface PasswordResetConfirmRequest {
+  token: string;
+  newPassword: string;
+}
+
+export interface EmailVerificationRequest {
+  token: string;
+}
+
+export interface OAuthProfile {
+  id: string;
+  email: string;
+  name: string;
+  avatar?: string;
+  provider: 'github' | 'google';
+}
+
+import { Request } from 'express';
+
+// Extend Express Request interface to include user
+declare global {
+  namespace Express {
+    interface Request {
+      user?: User;
+      authSession?: Session;
+    }
+  }
+}
+
+export interface AuthenticatedRequest extends Request {
+  user?: User;
+  authSession?: Session;
 }

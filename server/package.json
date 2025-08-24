@@ -10,6 +10,8 @@
     "start": "node dist/index.js",
     "test": "jest",
     "test:watch": "jest --watch",
+    "test:auth": "jest tests/auth --verbose",
+    "test:coverage": "jest --coverage",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
@@ -27,7 +29,8 @@
     "airtable": "^0.12.2",
     "joi": "^17.12.3",
     "compression": "^1.7.4",
-    "morgan": "^1.10.0"
+    "morgan": "^1.10.0",
+    "jsonwebtoken": "^9.0.2"
   },
   "devDependencies": {
     "@types/node": "^20.12.7",
@@ -36,6 +39,7 @@
     "@types/compression": "^1.7.5",
     "@types/morgan": "^1.9.9",
     "@types/jest": "^29.5.12",
+    "@types/jsonwebtoken": "^9.0.3",
     "typescript": "^5.4.5",
     "tsx": "^4.9.3",
     "tsc-alias": "^1.8.8",
@@ -43,6 +47,7 @@
     "ts-jest": "^29.1.2",
     "supertest": "^7.0.0",
     "@types/supertest": "^6.0.2",
+    "nock": "^13.3.8",
     "eslint": "^8.57.0",
     "@typescript-eslint/eslint-plugin": "^7.7.1",
     "@typescript-eslint/parser": "^7.7.1"
@@ -58,7 +63,10 @@
     "management",
     "api",
     "typescript",
-    "express"
+    "express",
+    "authentication",
+    "oauth",
+    "jwt"
   ],
   "author": "Chat Session Management Team",
   "license": "MIT"

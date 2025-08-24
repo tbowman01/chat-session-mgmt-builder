@@ -2,21 +2,31 @@ import React from 'react';
 import { clsx } from 'clsx';
 import { AlertCircle, CheckCircle, Info, XCircle, X } from 'lucide-react';
 
+interface AlertAction {
+  label: string;
+  onClick: () => void;
+  variant: 'primary' | 'secondary';
+}
+
 interface AlertProps {
   type?: 'info' | 'success' | 'warning' | 'error';
   title?: string;
-  children: React.ReactNode;
+  message?: string;
+  children?: React.ReactNode;
   dismissible?: boolean;
   onDismiss?: () => void;
+  actions?: AlertAction[];
   className?: string;
 }
 
 const Alert: React.FC<AlertProps> = ({
   type = 'info',
   title,
+  message,
   children,
   dismissible = false,
   onDismiss,
+  actions,
   className,
 }) => {
   const icons = {
@@ -74,8 +84,36 @@ const Alert: React.FC<AlertProps> = ({
           )}
           
           <div className={clsx('text-sm', title ? 'mt-2' : '')}>
+            {message && <p>{message}</p>}
             {children}
           </div>
+          
+          {actions && actions.length > 0 && (
+            <div className="mt-4 flex space-x-3">
+              {actions.map((action, index) => (
+                <button
+                  key={index}
+                  type="button"
+                  onClick={action.onClick}
+                  className={clsx(
+                    'text-xs font-medium px-3 py-1.5 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2',
+                    {
+                      'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500': action.variant === 'primary' && type === 'info',
+                      'bg-green-600 text-white hover:bg-green-700 focus:ring-green-500': action.variant === 'primary' && type === 'success',
+                      'bg-yellow-600 text-white hover:bg-yellow-700 focus:ring-yellow-500': action.variant === 'primary' && type === 'warning',
+                      'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500': action.variant === 'primary' && type === 'error',
+                      'bg-white text-blue-700 border border-blue-200 hover:bg-blue-50 focus:ring-blue-500': action.variant === 'secondary' && type === 'info',
+                      'bg-white text-green-700 border border-green-200 hover:bg-green-50 focus:ring-green-500': action.variant === 'secondary' && type === 'success',
+                      'bg-white text-yellow-700 border border-yellow-200 hover:bg-yellow-50 focus:ring-yellow-500': action.variant === 'secondary' && type === 'warning',
+                      'bg-white text-red-700 border border-red-200 hover:bg-red-50 focus:ring-red-500': action.variant === 'secondary' && type === 'error',
+                    }
+                  )}
+                >
+                  {action.label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         
         {dismissible && onDismiss && (
@@ -105,4 +143,5 @@ const Alert: React.FC<AlertProps> = ({
   );
 };
 
+export { Alert };
 export default Alert;
